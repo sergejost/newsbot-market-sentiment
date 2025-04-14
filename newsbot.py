@@ -106,17 +106,21 @@ def print_colored_news(feed_name, news, sentiment, polarity, market_sentiment):
     else:
         print(colored(f"{label} {news}", "yellow"))
 
-def print_cycle_summary(current_sentiment, previous_sentiment):
+def print_cycle_summary(current_sentiment, previous_sentiment, cycle_news_count):
     delta = current_sentiment - previous_sentiment
     if delta > 0:
         summary = colored(f"📈 Market sentiment improved by {delta:+.2f} points. Current Sentiment: {current_sentiment:+.2f}", "green")
     elif delta < 0:
         summary = colored(f"📉 Market sentiment worsened by {delta:+.2f} points. Current Sentiment: {current_sentiment:+.2f}", "red")
     else:
-        summary = colored(f"➖ No change in market sentiment. Current Sentiment: {current_sentiment:+.2f}", "yellow")
-    # print("\n" + summary + "\n")
+        summary = colored(f"No change in market sentiment. Current Sentiment: {current_sentiment:+.2f}", "yellow")
+
     print("\n" + summary)
-    save_sentiment_to_csv(current_sentiment, delta)
+
+    if cycle_news_count > 0:
+        save_sentiment_to_csv(current_sentiment, delta)
+    # else:
+    #     print(colored("No new news this cycle. Skipping CSV log.\n", "yellow"))
 
 def save_sentiment_to_csv(current_sentiment, delta):
     """Save timestamped sentiment data to CSV file."""
@@ -133,6 +137,7 @@ def news_analyzer():
     global total_polarity, news_count, previous_cycle_sentiment
 
     last_summary_time = time.time()
+    cycle_news_count = 0  # Track news processed during this cycle
 
     while True:
         if not news_queue.empty():
@@ -142,6 +147,8 @@ def news_analyzer():
             # Update overall market sentiment
             total_polarity += polarity
             news_count += 1
+            cycle_news_count += 1  # Count this news headline
+
             market_sentiment = total_polarity / news_count if news_count else 0
 
             print_colored_news(feed_name, news, sentiment, polarity, market_sentiment)
@@ -158,9 +165,10 @@ def news_analyzer():
             current_time = time.time()
             if current_time - last_summary_time >= 60:
                 market_sentiment = total_polarity / news_count if news_count else 0
-                print_cycle_summary(market_sentiment, previous_cycle_sentiment)
+                print_cycle_summary(market_sentiment, previous_cycle_sentiment, cycle_news_count)
                 previous_cycle_sentiment = market_sentiment
                 last_summary_time = current_time
+                cycle_news_count = 0  # Reset for next cycle
 
             time.sleep(1)
 
